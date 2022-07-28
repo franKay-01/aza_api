@@ -3,7 +3,6 @@ require "json_web_token"
 class AuthController < ApplicationController
 
   def create
-    # constants = Constant::Constants.new
     web_token = JsonWebToken::WebToken::new
 
     user = User.where(email: user_params[:email]).first
