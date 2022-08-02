@@ -25,12 +25,10 @@ class TransactionsController < ApplicationController
     else
       render json: @@util.send_failed_response('No record found')
     end
-
-    
   end
 
   def get_transaction
-    render json: Transaction.where(uuid: params[:uuid])
+    render json: Transaction.where(uuid: params[:uuid], active_status: true)
   end
 
   # POST /transactions
@@ -40,6 +38,8 @@ class TransactionsController < ApplicationController
     @transaction.output_amount = @@util.calculate_amount(transaction_params[:amount])
     @transaction.customer_id = @current_user.uuid
     @transaction.output_currency = transaction_params[:amount_currency]
+    # @transactions.active_status = true
+    # @transactions.del_status = false
 
     if @transaction.save
       render json: @@util.send_success_response(@transaction.as_json(only: [:uuid, :amount, :output_amount, :amount_currency, :output_currency]))
@@ -57,6 +57,30 @@ class TransactionsController < ApplicationController
     end
   end
 
+  def update_transaction
+    @transaction = Transaction.where(uuid: params[:uuid], active_status: true).first
+    if @transaction
+      @transaction.active_status = false
+      @transaction.del_status = true
+      if @transaction.save
+        @new_transaction = Transaction.new(transaction_params)
+        @new_transaction.uuid = @transaction[:uuid]
+        @new_transaction.output_amount = @@util.calculate_amount(transaction_params[:amount])
+        @new_transaction.customer_id = @current_user.uuid
+        @new_transaction.output_currency = transaction_params[:amount_currency]
+
+        if @new_transaction.save
+          render json: @@util.send_success_response(@transaction.as_json(only: [:uuid, :amount, :output_amount, :amount_currency, :output_currency]))
+        else
+          render json: @transaction.errors, status: :unprocessable_entity
+        end
+      else
+        render json: @transaction.errors, status: :unprocessable_entity
+      end
+    else
+      render json: @transaction.errors, status: :unprocessable_entity
+    end
+  end
   # DELETE /transactions/1
   def destroy
     @transaction.destroy
